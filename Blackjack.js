@@ -8,14 +8,14 @@ var gameOptions=GameOptions({
     numberOfDecks:6,
     hitSoft17:false,
     doubleAfterSplit:true,
-    doubleRange:[9,11],
+    doubleRange:[0,21],
     maxSplitHands:4,
-    resplitAces:false,
+    resplitAces:true,
     hitSplitedAce:false,
-    surrender:false,
+    surrender:'late',
     CSM:false,
     backBet:false,
-    EuropeanNoHoldCard:true,
+    EuropeanNoHoldCard:false,
     rolling:0,
     count: false,
     numberOfPlayer:4
@@ -374,119 +374,50 @@ function RunAGame(options){
         dealerCards.push(DealCard())
         dealerCards.push(DealCard())
 
-        const playerHand=[]
-        const hand={actingBet:betAmount,backBet:betAmount*backBetRatio,cards:[]}
-        hand.cards.push(DealCard())
-        hand.cards.push(DealCard())
-        playerHand.push(hand)
+        let dealerBlackjack=(dealerCards.length===2)&&(HandTotal(dealerCards).total===21)
+        const players=[]
+        let dealerNeedContinue=true
+        for(let player=0;player<options.numberOfPlayer;player++){
+            const playerHand=[]
+            const hand={actingBet:betAmount,backBet:betAmount*backBetRatio,cards:[]}
+            hand.cards.push(DealCard())
+            hand.cards.push(DealCard())
+            playerHand.push(hand)
+            let playerBlackjack=(playerHand.length===1)&&(playerHand[0].cards.length===2)&&(HandTotal(playerHand[0].cards).total===21)
 
-
-        Log(`inital two cards:   -player ${playerHand[0].cards}, -dealer ${dealerCards} `)
-        //start
-        let playerBlackjack=(HandTotal(playerHand[0].cards).total===21)
-        let dealerBlackjack=(HandTotal(dealerCards).total===21)
-        if(playerBlackjack){
-            if(dealerBlackjack){
-                Log('Player and Dealer have black - push')
-                return 0
+            Log(`inital two cards:   -player ${playerHand[0].cards}, -dealer ${dealerCards} `)
+            let bust=true
+            if(!playerBlackjack&&!dealerBlackjack){
+                PlayThePlayer(playerHand,dealerCards[0],options)
             }
-            else{
-                Log('Player won by BlackJack')
-                Log('Total outcome $'+betAmount*options.blackjackPayout)
-                // return betAmount*options.blackjackPayout
-                return (hand.actingBet+hand.backBet)*options.blackjackPayout
+
+            players.push(playerHand)
+
+            for(let hand=0;hand<playerHand.length;hand++){
+
+                if((HandTotal(playerHand[hand].cards).total<=21)&&(!playerHand[hand].surrender)){
+                    bust=false
+                }
             }
-        }else{
-            if((dealerCards[0]===1)){
-
-                // place for insurance to apply
-
-                //early A
-                if(options.surrender==='earlyA'){
-                    let action=strategy(playerHand[0].cards,dealerCards[0],playerHand.length,true,false,options)
-                    if((action==='surrender')){
-                        playerHand[0].surrender=true
-                        Log('Dealer allows early surrender, shows A, Player surrender and lost half bet')
-                        return EvaluateHand(playerHand,dealerCards,options)
-                    }
-                }
-
-
-                let win=0
-                if(dealerBlackjack){
-                    Log('Dealer has BlackJack, Player not allow to surrender')
-                    return EvaluateHand(playerHand,dealerCards,options)
-                }else{
-                    let action=strategy(playerHand[0].cards,dealerCards[0],playerHand.length,true,false,options)
-                    if((action==='surrender')){
-
-                        playerHand[0].surrender=true
-                        Log('Dealer does not have BlackJack, shows A, Player surrender and lost half bet')
-
-                        return EvaluateHand(playerHand,dealerCards,options)
-
-
-                    }
-                }
-
-            }else if(dealerCards[0]===10){
-                // do not apply the insurance
-
-
-                if(_.includes(options.surrender,'early')){
-
-                    let action=strategy(playerHand[0].cards,dealerCards[0],playerHand.length,true,false,options)
-                    if((action==='surrender')){
-                        playerHand[0].surrender=true
-                        Log('Dealer allows early surrender, shows 10, Player surrender and lost half bet')
-                        return EvaluateHand(playerHand,dealerCards,options)
-
-                    }
-                }
-                let win=0
-                if(dealerBlackjack){
-                    Log('Dealer has BlackJack, Player not allow to surrender')
-                    return EvaluateHand(playerHand,dealerCards,options)
-                }else{
-                    let action=strategy(playerHand[0].cards,dealerCards[0],playerHand.length,true,false,options)
-                    if((action==='surrender')){
-                        playerHand[0].surrender=true
-                        Log('Dealer does not have BlackJack, shows 10, Player surrender and lost half bet')
-                        return EvaluateHand(playerHand,dealerCards,options)
-
-                    }
-                }
-            }else if(strategy(playerHand[0].cards,dealerCards[0],playerHand.length,true,false,options)==='surrender'){
-                playerHand[0].surrender=true
-                Log('Dealer does not have A or Face card, Player surrender and lost half bet')
-                return EvaluateHand(playerHand,dealerCards,options)
+            if(bust){
+                Log(`The ${player+1} all  hands bust`)
+            }else{
+                dealerNeedContinue=true
             }
         }
 
+        if(dealerNeedContinue){
+            PlayDealerHand(dealerCards,options)
 
-        PlayThePlayer(playerHand,dealerCards[0],options)
-        let bust=true
-        for(let hand=0;hand<playerHand.length;hand++){
-
-            if(HandTotal(playerHand[hand].cards).total<=21){
-                bust=false
-            }
         }
-        if(bust){
-            Log('All player hands bust, dealer does not continue')
-            return EvaluateHand(playerHand,dealerCards,options)
+        let win=0
+
+        for(let player=0;player<options.numberOfPlayer;player++){
+            win+=EvaluateHand(players[player],dealerCards,options)
         }
 
+        return win
 
-
-
-        //check if player has bj,surrender or bust, then dealer does not continue
-        PlayDealerHand(dealerCards,options)
-
-
-
-
-        return EvaluateHand(playerHand,dealerCards,options)
     }
 
 
@@ -567,7 +498,7 @@ function HouseEdge(numTrials,handsPerTrial,gameOptions){
 var  verboseLog=false
 const backBetRatio=0
 const numTrials=1000
-const handsPerTrial=5000
+const handsPerTrial=20000
 console.log('backBet Ratio:'+backBetRatio)
 console.log(numTrials*handsPerTrial/10000)
 HouseEdge(numTrials,handsPerTrial,gameOptions)
