@@ -17,7 +17,7 @@ var gameOptions=GameOptions({
     backBet:false,
     EuropeanNoHoldCard:false,
     rolling:0,
-    count: false,
+    count: {system:'HiLo',trueCount:0},
     numberOfPlayer:4
 })
 console.log(gameOptions)
@@ -207,6 +207,15 @@ function EvaluateHand(playerHand, dealerCards, options){
 
 
     for(hand=0;hand<playerHand.length;hand++){
+        if(playerHand[hand].insurance){
+            if(dealerBlackjack){
+                win+=playerHand[hand].insurance*2
+                Log('insurance won')
+            }else{
+                win-=playerHand[hand].insurance
+                Log('insurance lost')
+            }
+        }
         if(playerHand[hand].surrender){
             // win-=(playerHand[hand].bet/2)
             win-=(playerHand[hand].actingBet+playerHand[hand].backBet)/2
@@ -327,13 +336,21 @@ function RunAGame(options){
 
 
             Log(`inital two player cards:   -player ${playerHand[0].cards}, -dealer one card ${dealerCards} `)
+            if(dealerCards[0]===1){
+                if(options.offerInsurance&&options.count&&options.count.trueCount>=3){
+                    playerHand[0].insurance=(playerHand[0].actingBet+playerHand[0].backBet)/2
+                    Log('place insurance')
+                }
+            }
+
+
             let bust=true
             PlayThePlayer(playerHand,dealerCards[0],options)
             players.push(playerHand)
 
             for(let hand=0;hand<playerHand.length;hand++){
 
-                if((HandTotal(playerHand[hand].cards).total<=21)&&(!playerHand[hand].surrender)){
+                if(playerHand[hand].insurance||((HandTotal(playerHand[hand].cards).total<=21)&&(!playerHand[hand].surrender))){
                     bust=false
                 }
             }
@@ -386,16 +403,25 @@ function RunAGame(options){
             let playerBlackjack=(playerHand.length===1)&&(playerHand[0].cards.length===2)&&(HandTotal(playerHand[0].cards).total===21)
 
             Log(`inital two cards:   -player ${playerHand[0].cards}, -dealer ${dealerCards} `)
+            if(dealerCards[0]===1&&!playerBlackjack){//insurance
+                if(options.offerInsurance&&options.count&&options.count.trueCount>=3){
+                    playerHand[0].insurance=(playerHand[0].actingBet+playerHand[0].backBet)/2
+                    Log('place insurance')
+                }
+            }
+
             let bust=true
             if(!playerBlackjack&&!dealerBlackjack){
                 PlayThePlayer(playerHand,dealerCards[0],options)
             }
 
+
+
             players.push(playerHand)
 
             for(let hand=0;hand<playerHand.length;hand++){
 
-                if((HandTotal(playerHand[hand].cards).total<=21)&&(!playerHand[hand].surrender)){
+                if(playerHand[hand].insurance||((HandTotal(playerHand[hand].cards).total<=21)&&(!playerHand[hand].surrender))){
                     bust=false
                 }
             }
@@ -495,10 +521,10 @@ function HouseEdge(numTrials,handsPerTrial,gameOptions){
         }
     }
 }
-var  verboseLog=false
+var  verboseLog=true
 const backBetRatio=0
-const numTrials=1000
-const handsPerTrial=20000
+const numTrials=100
+const handsPerTrial=5000
 console.log('backBet Ratio:'+backBetRatio)
 console.log(numTrials*handsPerTrial/10000)
 HouseEdge(numTrials,handsPerTrial,gameOptions)
