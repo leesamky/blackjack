@@ -4,28 +4,11 @@ const fs=require('fs')
 const _=require('lodash')
 const GameOptions=require('./GameOptions')
 const BackPlayer=require('./Back_player')
-var gameOptions=GameOptions({
-    numberOfDecks:6,
-    hitSoft17:false,
-    doubleAfterSplit:true,
-    doubleRange:[0,21],
-    maxSplitHands:4,
-    resplitAces:true,
-    hitSplitedAce:false,
-    surrender:'late',
-    CSM:false,
-    backBet:false,
-    EuropeanNoHoldCard:false,
-    rolling:0,
-    count: {system:'HiLo',trueCount:0},
-    numberOfPlayer:4
-})
-console.log(gameOptions)
-var deck=[]
-var hiLoCount=0
-InitializeDeck(gameOptions.numberOfDecks)
 
-var CSMDeck=_.clone(deck)
+var deck=[]
+var CSMDeck=[]
+var hiLoCount=0
+
 
 function Shuffle(){
     hiLoCount=0
@@ -172,7 +155,7 @@ function PlayThePlayer(playerHand,dealerCard,options){
             }
             if(options.backBet){
                 if(BackPlayer(playerHand[handCount].cards,dealerCard,playerHand.length,true,false,options)){
-                    hand.backBet=hand.actingBet*backBetRatio
+                    hand.backBet=hand.actingBet*options.backBetRatio
                 }
             }
             hand.cards.push(playerHand[handCount].cards.pop())
@@ -329,14 +312,14 @@ function RunAGame(options){
         let dealerNeedContinue=false
         for(let player=0;player<options.numberOfPlayer;player++){
             const playerHand=[]
-            const hand={actingBet:betAmount,backBet:betAmount*backBetRatio,cards:[]}
+            const hand={actingBet:betAmount,backBet:betAmount*options.backBetRatio,cards:[]}
             hand.cards.push(DealCard())
             hand.cards.push(DealCard())
             playerHand.push(hand)
-
+            let playerBlackjack=(playerHand.length===1)&&(playerHand[0].cards.length===2)&&(HandTotal(playerHand[0].cards).total===21)
 
             Log(`inital two player cards:   -player ${playerHand[0].cards}, -dealer one card ${dealerCards} `)
-            if(dealerCards[0]===1){
+            if(dealerCards[0]===1&&!playerBlackjack){
                 if(options.offerInsurance&&options.count&&options.count.trueCount>=3){
                     playerHand[0].insurance=(playerHand[0].actingBet+playerHand[0].backBet)/2
                     Log('place insurance')
@@ -396,7 +379,7 @@ function RunAGame(options){
         let dealerNeedContinue=true
         for(let player=0;player<options.numberOfPlayer;player++){
             const playerHand=[]
-            const hand={actingBet:betAmount,backBet:betAmount*backBetRatio,cards:[]}
+            const hand={actingBet:betAmount,backBet:betAmount*options.backBetRatio,cards:[]}
             hand.cards.push(DealCard())
             hand.cards.push(DealCard())
             playerHand.push(hand)
@@ -479,8 +462,12 @@ function average(data){
 }
 
 
-function HouseEdge(numTrials,handsPerTrial,gameOptions){
+function HouseEdge(numTrials,handsPerTrial,options){
     // Holds the aggregate result from each run of X hands
+
+    InitializeDeck(options.numberOfDecks)
+    CSMDeck=_.clone(deck)
+
     var simulationResults = [];
 
 // output file - if not defined we don't output
@@ -496,12 +483,12 @@ function HouseEdge(numTrials,handsPerTrial,gameOptions){
         for (var i = 0; i < handsPerTrial; i++)
         {
             // Here's where you control and can evaluation different options
-            runningTotal += RunAGame(gameOptions);
+            runningTotal += RunAGame(options);
             Log("Running total " + runningTotal);
             Log("");
         }
 
-        simulationResults.push((((100 * runningTotal) / handsPerTrial) / (initialBet+initialBet*backBetRatio)/(gameOptions.numberOfPlayer)));
+        simulationResults.push((((100 * runningTotal) / handsPerTrial) / (initialBet+initialBet*options.backBetRatio)/(options.numberOfPlayer)));
     }
 // console.log(simulationResults)
 // Calculate stddev and average
@@ -510,22 +497,39 @@ function HouseEdge(numTrials,handsPerTrial,gameOptions){
     console.log("StdDev:" + standardDeviation(simulationResults) + "%");
 
 
-// Write out all the results to a file if specified
-    if (outputFile)
-    {
-        fs.appendFileSync(outputFile, "Average:" + average(simulationResults) + "\n");
-        fs.appendFileSync(outputFile, "StdDev:" + standardDeviation(simulationResults) + "\n");
-        for (var i = 0; i < simulationResults.length; i++)
-        {
-            fs.appendFileSync(outputFile, simulationResults[i] + "%\n");
-        }
-    }
+
+
 }
-var  verboseLog=true
-const backBetRatio=0
-const numTrials=100
+var  verboseLog=false
+
+const numTrials=10000
 const handsPerTrial=5000
-console.log('backBet Ratio:'+backBetRatio)
+
 console.log(numTrials*handsPerTrial/10000)
+var gameOptions=GameOptions({
+    numberOfDecks:6,
+    hitSoft17:false,
+    doubleAfterSplit:true,
+    doubleRange:[0,21],
+    maxSplitHands:4,
+    resplitAces:true,
+    hitSplitedAce:false,
+    surrender:'late',
+    CSM:false,
+    backBet:false,
+    EuropeanNoHoldCard:false,
+    rolling:0,
+    // count: {system:'HiLo',trueCount:0},
+    count:false,
+    numberOfPlayer:4,
+    backBetRatio:0,
+    offerInsurance:false
+})
+console.log(gameOptions)
+
+
+
+
+
 HouseEdge(numTrials,handsPerTrial,gameOptions)
 

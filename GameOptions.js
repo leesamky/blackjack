@@ -17,7 +17,8 @@ module.exports=function (options){
         blackjackPayout:1.5,
         backBet:false,
         rolling:0,
-        numberOfPlayer:1
+        numberOfPlayer:1,
+        backBetRatio:0
 
     }
 
@@ -116,6 +117,10 @@ module.exports=function (options){
         if (options.hasOwnProperty("numberOfPlayer"))
         {
             playerOptions.numberOfPlayer = options.numberOfPlayer;
+        }
+        if (options.hasOwnProperty("backBetRatio"))
+        {
+            playerOptions.backBetRatio = options.backBetRatio;
         }
 
 
