@@ -493,6 +493,7 @@ function HouseEdge(numTrials,handsPerTrial,options){
 // console.log(simulationResults)
 // Calculate stddev and average
     console.timeEnd('PlayBlackJack');
+    return simulationResults
     console.log("Average:" + average(simulationResults) + "%");
     console.log("StdDev:" + standardDeviation(simulationResults) + "%");
 
@@ -502,34 +503,11 @@ function HouseEdge(numTrials,handsPerTrial,options){
 }
 var  verboseLog=false
 
-const numTrials=10000
-const handsPerTrial=5000
-
-console.log(numTrials*handsPerTrial/10000)
-var gameOptions=GameOptions({
-    numberOfDecks:6,
-    hitSoft17:false,
-    doubleAfterSplit:true,
-    doubleRange:[0,21],
-    maxSplitHands:4,
-    resplitAces:true,
-    hitSplitedAce:false,
-    surrender:'late',
-    CSM:false,
-    backBet:false,
-    EuropeanNoHoldCard:false,
-    rolling:0,
-    // count: {system:'HiLo',trueCount:0},
-    count:false,
-    numberOfPlayer:4,
-    backBetRatio:0,
-    offerInsurance:false
-})
-console.log(gameOptions)
+module.exports=HouseEdge
 
 
 
 
 
-HouseEdge(numTrials,handsPerTrial,gameOptions)
+// HouseEdge(numTrials,handsPerTrial,gameOptions)
 
